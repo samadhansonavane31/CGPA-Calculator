@@ -42,6 +42,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addSubjectBtn.addEventListener('click', addSubjectRow);
     
+    document.getElementById('input-method').addEventListener('change', (e) => {
+        const method = e.target.value;
+        const rows = document.querySelectorAll('.subject-row');
+        rows.forEach(row => {
+            const gradeCol = row.querySelector('.grade-col');
+            const marksCol = row.querySelector('.marks-col');
+            const gradeInput = row.querySelector('.subj-grade');
+            const marksObtained = row.querySelector('.subj-marks-obtained');
+            const marksTotal = row.querySelector('.subj-marks-total');
+
+            if (method === 'grade') {
+                gradeCol.style.display = 'block';
+                marksCol.style.display = 'none';
+                gradeInput.required = true;
+                marksObtained.required = false;
+                marksTotal.required = false;
+            } else {
+                gradeCol.style.display = 'none';
+                marksCol.style.display = 'flex';
+                gradeInput.required = false;
+                marksObtained.required = true;
+                marksTotal.required = true;
+            }
+        });
+    });
+
     calculatorForm.addEventListener('submit', (e) => {
         e.preventDefault();
         calculateGPA();
@@ -63,15 +89,19 @@ document.addEventListener('DOMContentLoaded', () => {
         row.className = 'subject-row';
         row.id = `subject-${subjectCount}`;
         
+        const currentMethod = document.getElementById('input-method') ? document.getElementById('input-method').value : 'grade';
+        const showGrade = currentMethod === 'grade' ? 'block' : 'none';
+        const showMarks = currentMethod === 'marks' ? 'flex' : 'none';
+        
         row.innerHTML = `
             <div class="input-group">
                 <input type="text" class="subj-name" placeholder="Subject Name (e.g. Mathematics)" required>
             </div>
             <div class="input-group">
-                <input type="number" class="subj-cred" placeholder="Credits (e.g. 3)" min="1" step="0.5" required>
+                <input type="number" class="subj-cred" placeholder="Credits (e.g. 3)" min="1" step="1" required>
             </div>
-            <div class="input-group">
-                <select class="subj-grade" required>
+            <div class="input-group grade-col" style="display: ${showGrade};">
+                <select class="subj-grade" ${currentMethod === 'grade' ? 'required' : ''}>
                     <option value="" disabled selected>Grade</option>
                     <option value="O">O (10)</option>
                     <option value="A+">A+ (9)</option>
@@ -82,6 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <option value="P">P (4)</option>
                     <option value="F">F (0)</option>
                 </select>
+            </div>
+            <div class="input-group marks-col" style="display: ${showMarks}; gap: 5px;">
+                <input type="number" class="subj-marks-obtained" placeholder="Score" min="0" ${currentMethod === 'marks' ? 'required' : ''} style="width: 100%;">
+                <input type="number" class="subj-marks-total" placeholder="Total" min="1" value="100" ${currentMethod === 'marks' ? 'required' : ''} style="width: 100%;">
             </div>
             <button type="button" class="btn-icon delete-btn" onclick="removeSubjectRow('${row.id}')">
                 X
@@ -102,20 +136,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function calculateGPA() {
         const rows = document.querySelectorAll('.subject-row');
+        const method = document.getElementById('input-method').value;
         let totalCredits = 0;
         let totalPoints = 0;
         let valid = true;
 
         rows.forEach(row => {
             const creditInput = row.querySelector('.subj-cred');
-            const gradeSelect = row.querySelector('.subj-grade');
-            
             const credit = parseFloat(creditInput.value);
-            const grade = gradeSelect.value;
+            let gradePoint = -1;
             
-            if (!isNaN(credit) && gradeScale.hasOwnProperty(grade)) {
+            if (method === 'grade') {
+                const gradeSelect = row.querySelector('.subj-grade');
+                const grade = gradeSelect.value;
+                if (gradeScale.hasOwnProperty(grade)) {
+                    gradePoint = gradeScale[grade];
+                } else {
+                    valid = false;
+                }
+            } else {
+                const obtained = parseFloat(row.querySelector('.subj-marks-obtained').value);
+                const total = parseFloat(row.querySelector('.subj-marks-total').value);
+                if (!isNaN(obtained) && !isNaN(total) && total > 0 && obtained <= total && obtained >= 0) {
+                    const percentage = (obtained / total) * 100;
+                    if (percentage >= 90) gradePoint = 10;
+                    else if (percentage >= 80) gradePoint = 9;
+                    else if (percentage >= 70) gradePoint = 8;
+                    else if (percentage >= 60) gradePoint = 7;
+                    else if (percentage >= 50) gradePoint = 6;
+                    else if (percentage >= 40) gradePoint = 5;
+                    else gradePoint = 0;
+                } else {
+                    valid = false;
+                }
+            }
+            
+            if (!isNaN(credit) && gradePoint !== -1) {
                 totalCredits += credit;
-                totalPoints += (credit * gradeScale[grade]);
+                totalPoints += (credit * gradePoint);
             } else {
                 valid = false;
             }
